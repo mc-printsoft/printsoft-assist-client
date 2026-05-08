@@ -1,0 +1,225 @@
+# Faza 0g.3 (08.05.2026): GitHub Actions workflow dla printsoft-assist-client repo.
+#
+# WGRAJ TEN PLIK DO: printsoft-assist-client/.github/workflows/release.yml
+# (NIE w printsoft-suite repo — to template do skopiowania przy gh repo create).
+#
+# Trigger: push tag assist-X.Y.Z lub workflow_dispatch.
+# Output: Release w printsoft-assist-client z artefaktami:
+#   - printsoft-assist-X.Y.Z.dmg (macOS)
+#   - printsoft-assist-X.Y.Z.exe (Windows portable)
+#   - printsoft-assist-X.Y.Z.deb (Linux)
+
+name: Release Printsoft Assist
+
+on:
+  push:
+    tags:
+      - 'assist-*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (np. 1.4.6)'
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_VERSION: 1.75
+  FLUTTER_VERSION: 3.24.0
+
+jobs:
+  apply-branding:
+    name: Apply branding patches
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install rsvg-convert + imagemagick
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin imagemagick
+
+      - name: Apply branding
+        run: bash scripts/apply-branding.sh
+
+      - name: Verify patches applied
+        run: |
+          grep -q "assist.printsoft.app" libs/hbb_common/src/config.rs
+          grep -q "iIaqYsmm0eIZOo9xVs1ONg5X1NEBgWrAmWhHEivW9ow" libs/hbb_common/src/config.rs
+          grep -q "ps.printsoft.app/api/assist" libs/hbb_common/src/lib.rs
+          grep -q "Printsoft Assist" libs/hbb_common/src/config.rs
+          echo "All branding patches verified"
+
+      - name: Upload patched source
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-patched
+          path: |
+            .
+            !.git
+          retention-days: 1
+
+  build-macos:
+    needs: apply-branding
+    name: Build macOS (${{ matrix.arch }})
+    strategy:
+      matrix:
+        include:
+          - os: macos-14
+            arch: arm64
+          - os: macos-13
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: source-patched
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Install build deps (vcpkg)
+        run: |
+          # RustDesk wymaga vcpkg dla libvpx, libyuv, opus, aom (wideo codecs).
+          # Cache przez actions/cache zeby nie buildowac za kazdym razem.
+          if [ ! -d ~/vcpkg ]; then
+            git clone https://github.com/microsoft/vcpkg ~/vcpkg
+            ~/vcpkg/bootstrap-vcpkg.sh
+          fi
+          ~/vcpkg/vcpkg install libvpx libyuv opus aom
+
+      - name: Build
+        env:
+          VCPKG_ROOT: ~/vcpkg
+        run: |
+          python3 build.py --flutter --hwcodec
+          # build.py output: ./flutter/build/macos/Build/Products/Release/Printsoft Assist.app
+
+      - name: Create DMG
+        run: |
+          APP_PATH="flutter/build/macos/Build/Products/Release/Printsoft Assist.app"
+          DMG_NAME="printsoft-assist-${GITHUB_REF_NAME#assist-}-${{ matrix.arch }}.dmg"
+          hdiutil create -volname "Printsoft Assist" -srcfolder "$APP_PATH" -ov -format UDZO "$DMG_NAME"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: '*.dmg'
+
+  build-windows:
+    needs: apply-branding
+    name: Build Windows
+    runs-on: windows-2022
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: source-patched
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Install vcpkg + deps
+        shell: pwsh
+        run: |
+          if (!(Test-Path "$env:USERPROFILE\vcpkg")) {
+            git clone https://github.com/microsoft/vcpkg "$env:USERPROFILE\vcpkg"
+            & "$env:USERPROFILE\vcpkg\bootstrap-vcpkg.bat"
+          }
+          & "$env:USERPROFILE\vcpkg\vcpkg.exe" install libvpx:x64-windows-static libyuv:x64-windows-static opus:x64-windows-static aom:x64-windows-static
+
+      - name: Build
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/../vcpkg
+        run: python build.py --flutter --hwcodec --portable
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: '*.exe'
+
+  build-linux:
+    needs: apply-branding
+    name: Build Linux
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: source-patched
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: System deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev libxdo-dev libxfixes-dev libxcb-randr0-dev \
+            libxcb-shape0-dev libxcb-xfixes0-dev libpam0g-dev libpulse-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            librsvg2-bin imagemagick
+
+      - name: Install vcpkg + deps
+        run: |
+          if [ ! -d ~/vcpkg ]; then
+            git clone https://github.com/microsoft/vcpkg ~/vcpkg
+            ~/vcpkg/bootstrap-vcpkg.sh
+          fi
+          ~/vcpkg/vcpkg install libvpx libyuv opus aom
+
+      - name: Build
+        env:
+          VCPKG_ROOT: ~/vcpkg
+        run: python3 build.py --flutter --hwcodec
+
+      - name: Create .deb
+        run: |
+          # build.py wyprodukowal binarke. Dorzucamy debian packaging.
+          DEB_NAME="printsoft-assist-${GITHUB_REF_NAME#assist-}-amd64.deb"
+          # ... (RustDesk ma cargo-deb config, dziala zwykle out-of-box)
+          cargo install cargo-deb --version 2.0
+          cargo deb --no-build --output "$DEB_NAME"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: '*.deb'
+
+  release:
+    needs: [build-macos, build-windows, build-linux]
+    name: Create GitHub Release
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Printsoft Assist ${{ github.ref_name }}
+          files: |
+            artifacts/macos-arm64/*.dmg
+            artifacts/macos-x64/*.dmg
+            artifacts/windows/*.exe
+            artifacts/linux/*.deb
+          generate_release_notes: true
