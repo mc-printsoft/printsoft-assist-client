@@ -217,10 +217,14 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          install: librsvg imagemagick
+          # MINGW64 prefix wymagany dla MSYS2 - 'librsvg'/'imagemagick' bez prefixu
+          # nie istnieja w MINGW64 repo (uzylyby tylko w MSYS shell, nie MINGW64).
+          install: mingw-w64-x86_64-librsvg mingw-w64-x86_64-imagemagick
 
       - name: Apply Printsoft branding
-        shell: bash
+        # MSYS2 shell - PATH zawiera /mingw64/bin gdzie sa rsvg-convert + convert.
+        # Z 'shell: bash' (Git Bash) komendy te byly nie do znalezienia.
+        shell: msys2 {0}
         run: bash scripts/apply-branding.sh
 
       - uses: KyleMayes/install-llvm-action@v2
