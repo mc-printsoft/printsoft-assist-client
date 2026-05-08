@@ -42,6 +42,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install rsvg-convert + imagemagick
+        run: sudo apt-get update && sudo apt-get install -y librsvg2-bin imagemagick
+
       - name: Apply Printsoft branding
         run: bash scripts/apply-branding.sh
 
@@ -51,9 +54,14 @@ jobs:
           components: rustfmt
 
       - name: Install protoc
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
+        run: sudo apt-get install -y protobuf-compiler
+
+      # flutter_rust_bridge_codegen post-processes Dart code przez 'flutter format',
+      # wiec flutter MUSI byc dostepny w PATH zanim wywolamy codegen.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
 
       - name: Install flutter_rust_bridge_codegen
         run: cargo install flutter_rust_bridge_codegen --version 1.80.1 --features uuid --locked
