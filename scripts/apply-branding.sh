@@ -71,9 +71,42 @@ PYEOF
 fi
 
 # ─── 5. Cargo.toml package name ───
+# UWAGA: RustDesk Cargo.toml ma kilka miejsc z "rustdesk":
+#   1. [package] name = "rustdesk"        -> "printsoft-assist"
+#   2. [package] default-run = "rustdesk" -> "printsoft-assist" (musi pasowac do package name)
+#   3. [package.metadata.bundle] name = "RustDesk" -> "Printsoft Assist" (macOS .app bundle name)
+#      [package.metadata.bundle] identifier = "com.carriez.rustdesk" -> "app.printsoft.assist"
+#
+# UWAGA: NIE zmieniamy [lib] name = "librustdesk" — to nazwa biblioteki uzywana
+# w 10+ plikach (.rs, .dart, CMake). Zostaje "librustdesk", bo to tylko internal
+# library name i Flutter ja loaduje przez konkretne sciezki w native_model.dart.
 echo "[5/8] Cargo.toml metadata"
 sed -i.bak 's|^name = "rustdesk"|name = "printsoft-assist"|' Cargo.toml
+sed -i.bak 's|^default-run = "rustdesk"|default-run = "printsoft-assist"|' Cargo.toml
 sed -i.bak 's|^description = .*|description = "Printsoft Assist - remote support tool"|' Cargo.toml
+# [package.metadata.bundle] - zmieniamy 'name = "RustDesk"' i 'identifier'.
+# UWAGA: 'name = "RustDesk"' wystepuje w [package.metadata.bundle] sekcji,
+# ale sed nie wie o sekcjach. Robimy to przez Python zeby nie polamac
+# linii 'name = "rustdesk"' w innych miejscach (Cargo.toml moze miec [[bin]] name).
+python3 - <<'PYEOF'
+import re
+with open('Cargo.toml', 'r') as f:
+    content = f.read()
+# Wymien tylko w [package.metadata.bundle] sekcji
+content = re.sub(
+    r'(\[package\.metadata\.bundle\][\s\S]*?)name = "RustDesk"',
+    r'\1name = "Printsoft Assist"',
+    content
+)
+content = re.sub(
+    r'(\[package\.metadata\.bundle\][\s\S]*?)identifier = "com\.carriez\.rustdesk"',
+    r'\1identifier = "app.printsoft.assist"',
+    content
+)
+with open('Cargo.toml', 'w') as f:
+    f.write(content)
+print("   [package.metadata.bundle] patched")
+PYEOF
 
 # ─── 6. Flutter pubspec ───
 echo "[6/8] Flutter pubspec.yaml"
