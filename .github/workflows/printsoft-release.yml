@@ -18,6 +18,17 @@ name: Printsoft Assist Release
 
 on:
   workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform to build'
+        required: true
+        default: 'windows'
+        type: choice
+        options:
+          - windows
+          - macos
+          - linux
+          - all
   push:
     tags:
       - 'assist-*'
@@ -31,7 +42,7 @@ env:
   VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
   # Pinowane do RustDesk 1.4.6 walidowanego commit'a vcpkg
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
-  TAG_NAME: ${{ github.ref_name }}
+  TAG_NAME: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('dev-{0}', github.run_number) }}
 
 jobs:
   generate-bridge:
@@ -66,6 +77,12 @@ jobs:
       - name: Install flutter_rust_bridge_codegen
         run: cargo install flutter_rust_bridge_codegen --version 1.80.1 --features uuid --locked
 
+      # ffigen (uruchamiany przez flutter_rust_bridge_codegen) wymaga
+      # .dart_tool/package_config.json - generowany dopiero przez 'flutter pub get'.
+      # Bez tego: "Cannot open file, path = '.dart_tool/package_config.json'"
+      - name: Flutter pub get (dla ffigen)
+        run: cd flutter && flutter pub get
+
       - name: Generate bridge
         run: |
           flutter_rust_bridge_codegen \
@@ -86,6 +103,7 @@ jobs:
 
   build-macos:
     needs: [generate-bridge]
+    if: github.event_name == 'push' || github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'all'
     name: macOS ${{ matrix.job.arch }}
     runs-on: ${{ matrix.job.os }}
     strategy:
@@ -182,6 +200,7 @@ jobs:
 
   build-windows:
     needs: [generate-bridge]
+    if: github.event_name == 'push' || github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all'
     runs-on: windows-2022
     steps:
       - uses: actions/github-script@v7
@@ -258,7 +277,17 @@ jobs:
             find ./flutter/build/windows/x64/runner/Release -name "*.exe" -exec cp {} out/printsoft-assist-${TAG_NAME#assist-}.exe \;
           fi
 
-      - uses: softprops/action-gh-release@v2
+      - name: Upload artifact (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: printsoft-assist-windows-${{ env.TAG_NAME }}
+          path: out/*.exe
+          if-no-files-found: error
+
+      - name: Upload to GitHub Release (push tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
@@ -266,6 +295,7 @@ jobs:
 
   build-linux:
     needs: [generate-bridge]
+    if: github.event_name == 'push' || github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/github-script@v7
