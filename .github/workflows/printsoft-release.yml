@@ -37,7 +37,12 @@ env:
   RUST_VERSION: "1.75"
   MAC_RUST_VERSION: "1.81"
   LLVM_VERSION: "15.0.6"
-  FLUTTER_VERSION: "3.24.5"
+  # Flutter 3.22.x: dopasowane do RustDesk 1.4.6 source. 3.24+ nie kompiluje:
+  #   - lib/models/model.dart: 'EventToUI_Rgba' isn't a type (bridge codegen rozjazd)
+  #   - lib/common/widgets/dialog.dart: String? -> String null safety
+  #   - lib/common/widgets/toolbar.dart: bool? -> bool null safety
+  # 3.22.x ma starszy null safety wymagania ktore RustDesk source spelnia.
+  FLUTTER_VERSION: "3.22.3"
   # Kluczowe: GHA binary cache dla vcpkg, bez tego ffmpeg compile 30+ min za kazdym razem
   VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
   # Pinowane do RustDesk 1.4.6 walidowanego commit'a vcpkg
