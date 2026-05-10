@@ -269,15 +269,21 @@ jobs:
         run: |
           ls -la ./SignOutput/ 2>/dev/null || true
           ls -la ./flutter/build/windows/x64/runner/Release/ 2>/dev/null || true
+          # Sanityzuj TAG_NAME — workflow_dispatch z brancha "feature/foo" wstawia
+          # slash do filename i `cp out/printsoft-assist-feature/foo.exe` traktuje
+          # to jako podkatalog → fail. Zamiana / na -.
+          SAFE_TAG="${TAG_NAME#assist-}"
+          SAFE_TAG="${SAFE_TAG//\//-}"
           # Skopiuj .exe pod nasza nazwe
           mkdir -p out
           if [ -f ./SignOutput/*.exe ]; then
-            cp ./SignOutput/*.exe out/printsoft-assist-${TAG_NAME#assist-}.exe || true
+            cp ./SignOutput/*.exe "out/printsoft-assist-${SAFE_TAG}.exe" || true
           fi
           # Fallback: zwykly Release exe (nie self-extracting)
           if [ ! -f out/*.exe ]; then
-            find ./flutter/build/windows/x64/runner/Release -name "*.exe" -exec cp {} out/printsoft-assist-${TAG_NAME#assist-}.exe \;
+            find ./flutter/build/windows/x64/runner/Release -name "*.exe" -exec cp {} "out/printsoft-assist-${SAFE_TAG}.exe" \;
           fi
+          ls -la out/
 
       - uses: actions/upload-artifact@v4
         with:
