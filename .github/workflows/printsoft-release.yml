@@ -279,7 +279,15 @@ jobs:
             find ./flutter/build/windows/x64/runner/Release -name "*.exe" -exec cp {} out/printsoft-assist-${TAG_NAME#assist-}.exe \;
           fi
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: printsoft-assist-windows
+          path: out/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
       - uses: softprops/action-gh-release@v2
+        continue-on-error: true
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
