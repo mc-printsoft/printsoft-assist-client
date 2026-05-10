@@ -9,6 +9,7 @@ import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/widgets/animated_rotation_widget.dart';
 import 'package:flutter_hbb/common/widgets/custom_password.dart';
 import 'package:flutter_hbb/consts.dart';
+import 'package:flutter_hbb/desktop/widgets/printsoft_report_problem_dialog.dart';
 import 'package:flutter_hbb/desktop/pages/connection_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_setting_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
@@ -171,6 +172,24 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                         }
                     },
                     onHover: (value) => _editHover.value = value,
+                  ),
+                ),
+              ),
+            // 0g.14b (10.05.2026): Printsoft Assist — przycisk "Zglos problem"
+            // Floating button w prawym dolnym rogu lewego panelu, obok Settings
+            if (isOutgoingOnly)
+              Positioned(
+                bottom: 6,
+                right: 12,
+                child: Tooltip(
+                  message: 'Zglos problem',
+                  child: InkWell(
+                    onTap: () => showPrintsoftReportProblemDialog(context),
+                    child: Icon(
+                      Icons.report_problem_outlined,
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                      size: 22,
+                    ),
                   ),
                 ),
               )

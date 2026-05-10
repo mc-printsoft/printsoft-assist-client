@@ -123,6 +123,20 @@ if [ -f "flutter/macos/Runner/Configs/AppInfo.xcconfig" ]; then
   sed -i.bak 's|com.carriez.flutterHbb|app.printsoft.assist|g' flutter/macos/Runner/Configs/AppInfo.xcconfig
 fi
 
+# 0g.14b (10.05.2026): URL scheme + bundle identifier w macOS Info.plist
+# Bez tego custom URL scheme (printsoft-assist://) nie dziala
+if [ -f "flutter/macos/Runner/Info.plist" ]; then
+  sed -i.bak 's|<string>rustdesk</string>|<string>printsoft-assist</string>|g' flutter/macos/Runner/Info.plist
+  sed -i.bak 's|<string>com.carriez.rustdesk</string>|<string>app.printsoft.assist</string>|g' flutter/macos/Runner/Info.plist
+fi
+
+# 0g.14b: Cargo.toml Windows resource info (FileDescription, OriginalFilename, etc.)
+# Te wartosci ladnie sie pojawiaja w Properties pliku .exe na Windowsie
+sed -i.bak 's|OriginalFilename = "rustdesk.exe"|OriginalFilename = "printsoft-assist.exe"|g' Cargo.toml
+sed -i.bak 's|ProductName = "RustDesk"|ProductName = "Printsoft Assist"|g' Cargo.toml
+sed -i.bak 's|FileDescription = "RustDesk Remote Desktop"|FileDescription = "Printsoft Assist - remote support"|g' Cargo.toml
+sed -i.bak 's|CompanyName = "Purslane Ltd"|CompanyName = "Print-Soft Maciej Chorzepa"|g' Cargo.toml
+
 # Windows
 if [ -f "flutter/windows/runner/Runner.rc" ]; then
   sed -i.bak 's|"RustDesk Remote Desktop"|"Printsoft Assist"|g' flutter/windows/runner/Runner.rc
