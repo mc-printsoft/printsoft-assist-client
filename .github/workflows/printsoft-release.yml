@@ -87,6 +87,7 @@ jobs:
             ./src/bridge_generated.io.rs
             ./src/bridge_generated.web.rs
             ./flutter/lib/generated_bridge.dart
+            ./flutter/lib/generated_bridge.freezed.dart
             ./flutter/macos/Runner/bridge_generated.h
           if-no-files-found: warn
 
