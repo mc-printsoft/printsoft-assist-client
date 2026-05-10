@@ -27,22 +27,22 @@ if [ ! -f "Cargo.toml" ] || ! grep -q '^name = "rustdesk"' Cargo.toml 2>/dev/nul
 fi
 
 # ─── 1. Default rendezvous + pubkey w libs/hbb_common/src/config.rs ───
-echo "[1/8] Rendezvous server + public key (config.rs)"
+echo "[1/9] Rendezvous server + public key (config.rs)"
 sed -i.bak 's|"rs-ny.rustdesk.com"|"assist.printsoft.app"|g' libs/hbb_common/src/config.rs
 sed -i.bak 's|"OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw="|"iIaqYsmm0eIZOo9xVs1ONg5X1NEBgWrAmWhHEivW9ow="|g' libs/hbb_common/src/config.rs
 
 # ─── 2. APP_NAME w config.rs (RwLock default value) ───
-echo "[2/8] APP_NAME (Printsoft Assist)"
+echo "[2/9] APP_NAME (Printsoft Assist)"
 sed -i.bak 's|RwLock::new("RustDesk".to_owned())|RwLock::new("Printsoft Assist".to_owned())|g' libs/hbb_common/src/config.rs
 
 # ─── 3. Update endpoint (libs/hbb_common/src/lib.rs) ───
-echo "[3/8] Update endpoint (api.rustdesk.com -> ps.printsoft.app)"
+echo "[3/9] Update endpoint (api.rustdesk.com -> ps.printsoft.app)"
 sed -i.bak 's|https://api.rustdesk.com/version/latest|https://ps.printsoft.app/api/assist/agent/version|g' libs/hbb_common/src/lib.rs
 
 # ─── 4. is_custom_client guard ───
 # Po rebrand APP_NAME != "RustDesk" -> is_custom_client zwraca true ->
 # check_software_update early-return. Patchujemy żeby update flow działał.
-echo "[4/8] Wlacz update flow dla custom client (src/common.rs)"
+echo "[4/9] Wlacz update flow dla custom client (src/common.rs)"
 # Zmieniam guard `if is_custom_client()` w check_software_update na noop comment.
 # Dokladne miejsce: src/common.rs ~line 1010 funkcja check_software_update.
 # Robimy to ostroznie - jesli linia wyglada inaczej w nowej wersji, sed nic nie robi
@@ -79,7 +79,7 @@ fi
 # UWAGA: NIE zmieniamy [lib] name = "librustdesk" — to nazwa biblioteki uzywana
 # w 10+ plikach (.rs, .dart, CMake). Zostaje "librustdesk", bo to tylko internal
 # library name i Flutter ja loaduje przez konkretne sciezki w native_model.dart.
-echo "[5/8] Cargo.toml metadata"
+echo "[5/9] Cargo.toml metadata"
 # 0g.14b (10.05.2026): NIE zmieniamy `name = "rustdesk"` ani `default-run` — to
 # nazwa crate Rust uzywana przez flutter_rust_bridge_codegen do generowania
 # klasy Dart `RustdeskImpl` w generated_bridge.dart. Plik native_model.dart
@@ -115,13 +115,13 @@ print("   [package.metadata.bundle] patched")
 PYEOF
 
 # ─── 6. Flutter pubspec ───
-echo "[6/8] Flutter pubspec.yaml"
+echo "[6/9] Flutter pubspec.yaml"
 if [ -f "flutter/pubspec.yaml" ]; then
   sed -i.bak 's|^description: .*|description: Printsoft Assist|' flutter/pubspec.yaml
 fi
 
 # ─── 7. Platform-specific window/product names ───
-echo "[7/8] Platform branding (Mac/Win/Linux)"
+echo "[7/9] Platform branding (Mac/Win/Linux)"
 
 # macOS
 # 0g.14b ci-fix4 (10.05.2026): PRODUCT_NAME bez spacji (PrintsoftAssist) zeby
@@ -180,7 +180,7 @@ if [ -f "flutter/linux/CMakeLists.txt" ]; then
 fi
 
 # ─── 8. Icon assets ───
-echo "[8/8] Icon assets (generate from assets/logo.svg)"
+echo "[8/9] Icon assets (generate from assets/logo.svg)"
 
 if [ -d "$ASSETS_DIR" ] && [ -f "${ASSETS_DIR}/logo.svg" ]; then
   # Generujemy PNG-i z SVG dla wszystkich potrzebnych rozmiarow.
@@ -258,6 +258,40 @@ if [ -d "$ASSETS_DIR" ] && [ -f "${ASSETS_DIR}/logo.svg" ]; then
   fi
 else
   echo "   assets/logo.svg nie istnieje, skip icon generation"
+fi
+
+# ─── 9. Translations rebrand (Maciej feedback 10.05.2026) ───
+# Replace "RustDesk" → "Printsoft Assist" w polskich tlumaczeniach + usuwamy:
+# - "Powered by RustDesk" (lewy gorny rog UI) → pusty (zniknie z UI)
+# - "setup_server_tip" (status bar bottom) → pusty (juz mamy własny serwer)
+# Plus english fallback (en.rs) zeby gdyby user przelaczyl jezyk to tez bez RustDesk.
+echo "[9/9] Translations rebrand (PL + EN)"
+
+# Polski - usun calkiem "Powered by RustDesk" oraz status bar tip o szybszym serwerze
+if [ -f "src/lang/pl.rs" ]; then
+  # Status bar bottom: zniknij komunikat "W celu uzyskania szybszego polaczenia..."
+  sed -i.bak 's|"setup_server_tip", "W celu uzyskania szybszego połączenia, skorzystaj z własnego serwera połączeń."|"setup_server_tip", ""|g' src/lang/pl.rs
+
+  # "Powered by RustDesk" - usun calkiem (klient sam kupi nasz program przez printsoft.app)
+  sed -i.bak 's|"powered_by_me", "Powered by RustDesk"|"powered_by_me", "Printsoft Assist • printsoft.app"|g' src/lang/pl.rs
+
+  # Pozostale wystapienia "RustDesk" -> "Printsoft Assist" w tlumaczeniach
+  sed -i.bak 's|RustDesk może nie działać poprawnie|Printsoft Assist może nie działać poprawnie|g' src/lang/pl.rs
+  sed -i.bak 's|w celu uniknięcia problemów z UAC, kliknij poniższy przycisk by zainstalować RustDesk|w celu uniknięcia problemów z UAC, kliknij poniższy przycisk by zainstalować Printsoft Assist|g' src/lang/pl.rs
+  sed -i.bak 's|By uruchomić RustDesk przy starcie systemu|By uruchomić Printsoft Assist przy starcie systemu|g' src/lang/pl.rs
+  sed -i.bak 's|musisz zezwolić RustDesk na korzystanie|musisz zezwolić Printsoft Assist na korzystanie|g' src/lang/pl.rs
+  sed -i.bak 's|włącz usługę \[RustDesk Input\]|włącz usługę [Printsoft Assist Input]|g' src/lang/pl.rs
+  sed -i.bak 's|"Keep RustDesk background service", "Zachowaj usługę RustDesk w tle"|"Keep RustDesk background service", "Zachowaj usługę Printsoft Assist w tle"|g' src/lang/pl.rs
+  sed -i.bak 's|przejdź do następnej strony ustawień aplikacji RustDesk|przejdź do następnej strony ustawień aplikacji Printsoft Assist|g' src/lang/pl.rs
+  sed -i.bak 's|"Show RustDesk", "Pokaż RustDesk"|"Show RustDesk", "Pokaż Printsoft Assist"|g' src/lang/pl.rs
+  sed -i.bak 's|musisz udzielić aplikacji RustDesk uprawnień|musisz udzielić aplikacji Printsoft Assist uprawnień|g' src/lang/pl.rs
+  sed -i.bak 's|przyznać RustDesk uprawnienia|przyznać Printsoft Assist uprawnienia|g' src/lang/pl.rs
+  sed -i.bak 's|nie odkryliśmy żadnych urządzeń z RustDesk w Twojej sieci|nie odkryliśmy żadnych urządzeń z Printsoft Assist w Twojej sieci|g' src/lang/pl.rs
+fi
+
+# English (default) - rebrand kluczowych miejsc
+if [ -f "src/lang/en.rs" ]; then
+  sed -i.bak 's|"powered_by_me", "Powered by RustDesk"|"powered_by_me", "Printsoft Assist • printsoft.app"|g' src/lang/en.rs
 fi
 
 # ─── Cleanup .bak files ───
