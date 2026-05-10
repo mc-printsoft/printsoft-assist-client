@@ -66,6 +66,12 @@ jobs:
       - name: Install flutter_rust_bridge_codegen
         run: cargo install flutter_rust_bridge_codegen --version 1.80.1 --features uuid --locked
 
+      # 0g.14b (10.05.2026): flutter pub get jest wymagany ZANIM ffigen
+      # (subprocess flutter_rust_bridge_codegen) probuje czytac package_config.json.
+      # Bez tego: "Cannot open file, path = '.dart_tool/package_config.json'".
+      - name: Flutter pub get (preq for ffigen)
+        run: cd flutter && flutter pub get
+
       - name: Generate bridge
         run: |
           flutter_rust_bridge_codegen \
