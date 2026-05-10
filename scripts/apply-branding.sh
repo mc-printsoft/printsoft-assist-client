@@ -294,6 +294,22 @@ if [ -f "src/lang/en.rs" ]; then
   sed -i.bak 's|"powered_by_me", "Powered by RustDesk"|"powered_by_me", "Printsoft Assist • printsoft.app"|g' src/lang/en.rs
 fi
 
+# About box "Slogan_tip" - dane firmy zamiast hippy slogana
+# pl.rs: "Tworzone z miłością w tym pełnym chaosu świecie!" -> dane Print-Soft
+if [ -f "src/lang/pl.rs" ]; then
+  sed -i.bak "s|\"Slogan_tip\", \"Tworzone z miłością w tym pełnym chaosu świecie!\"|\"Slogan_tip\", \"PRINTSOFT Sp. z o.o. · NIP PL7352906772 · hello@printsoft.app · printsoft.app\"|g" src/lang/pl.rs
+fi
+if [ -f "src/lang/en.rs" ]; then
+  # Najprawdopodobniej "Slogan_tip" w en.rs ma "Built with passion in this chaotic world" lub podobne
+  sed -i.bak 's|"Slogan_tip", "Built with passion[^"]*"|"Slogan_tip", "PRINTSOFT Sp. z o.o. · NIP PL7352906772 · hello@printsoft.app · printsoft.app"|g' src/lang/en.rs
+fi
+
+# About box copyright - "Purslane Ltd" -> "PRINTSOFT Sp. z o.o."
+# Plik flutter/lib/desktop/pages/desktop_setting_page.dart linia ~2408
+if [ -f "flutter/lib/desktop/pages/desktop_setting_page.dart" ]; then
+  sed -i.bak 's|Copyright © \${DateTime.now().toString().substring(0, 4)} Purslane Ltd.|Copyright © \${DateTime.now().toString().substring(0, 4)} PRINTSOFT Sp. z o.o.|g' flutter/lib/desktop/pages/desktop_setting_page.dart
+fi
+
 # ─── Cleanup .bak files ───
 echo "Cleanup .bak files"
 find libs/hbb_common src flutter Cargo.toml -name "*.bak" -delete 2>/dev/null || true
