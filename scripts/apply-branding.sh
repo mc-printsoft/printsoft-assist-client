@@ -369,6 +369,70 @@ if [ -f "flutter/lib/desktop/pages/desktop_setting_page.dart" ]; then
   sed -i.bak 's|Copyright © \${DateTime.now().toString().substring(0, 4)} Purslane Ltd.|Copyright © \${DateTime.now().toString().substring(0, 4)} PRINTSOFT Sp. z o.o.|g' flutter/lib/desktop/pages/desktop_setting_page.dart
 fi
 
+# loadPowered widget (lewy gorny rog) - link na printsoft.app zamiast rustdesk.com
+if [ -f "flutter/lib/common.dart" ]; then
+  sed -i.bak "s|launchUrl(Uri.parse('https://rustdesk.com'))|launchUrl(Uri.parse('https://printsoft.app'))|g" flutter/lib/common.dart
+fi
+
+# Logo Printsoft nad "Twój pulpit" w lewym panelu (Maciej feedback 10.05.2026).
+# Dodaje obrazek 60x60 z assets/logo.png (juz wygenerowany przez branding step 8).
+# Patchujemy desktop_home_page.dart przez Python (multiline replace).
+if [ -f "flutter/lib/desktop/pages/desktop_home_page.dart" ]; then
+  python3 - <<'PYEOF'
+import re
+
+path = 'flutter/lib/desktop/pages/desktop_home_page.dart'
+with open(path, 'r') as f:
+    content = f.read()
+
+# Wstaw Image.asset z logo PRZED "Your Desktop" Text
+old_block = '''          Column(
+            children: [
+              if (!isOutgoingOnly)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    translate("Your Desktop"),
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+            ],
+          ),'''
+
+new_block = '''          Column(
+            children: [
+              // 0g.14b ci-fix7: Printsoft logo nad "Twój pulpit"
+              if (!isOutgoingOnly)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Image.asset(
+                    'assets/logo.png',
+                    width: 56,
+                    height: 56,
+                    errorBuilder: (_, __, ___) => SizedBox(width: 56, height: 56),
+                  ),
+                ),
+              if (!isOutgoingOnly)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    translate("Your Desktop"),
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+            ],
+          ),'''
+
+if old_block in content:
+    content = content.replace(old_block, new_block)
+    with open(path, 'w') as f:
+        f.write(content)
+    print("   Logo added before 'Your Desktop'")
+else:
+    print("   WARN: 'Your Desktop' block not found - layout sie zmienil?")
+PYEOF
+fi
+
 # ─── Cleanup .bak files ───
 echo "Cleanup .bak files"
 find libs/hbb_common src flutter Cargo.toml -name "*.bak" -delete 2>/dev/null || true
