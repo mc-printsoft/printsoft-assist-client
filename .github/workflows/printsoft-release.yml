@@ -218,7 +218,8 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          install: librsvg imagemagick
+          # MINGW64 paczki wymagaja prefiksu 'mingw-w64-x86_64-' (10.05.2026 fix)
+          install: mingw-w64-x86_64-librsvg mingw-w64-x86_64-imagemagick
 
       - name: Apply Printsoft branding
         shell: bash
