@@ -149,6 +149,17 @@ if [ -f "flutter/windows/runner/Runner.rc" ]; then
   sed -i.bak 's|"RustDesk"|"Printsoft Assist"|g' flutter/windows/runner/Runner.rc
 fi
 
+# 0g.14b ci-fix3 (10.05.2026): build.py post-build copy szuka RustDesk.app
+# (nazwa bundle przed naszym brandingiem). Ale po PRODUCT_NAME=Printsoft Assist
+# Tauri/Flutter tworzy Printsoft Assist.app — copy padl z:
+#   "cp: directory ./build/macos/Build/Products/Release/RustDesk.app/Contents/MacOS does not exist"
+# Patchujemy build.py: RustDesk.app -> Printsoft Assist.app
+if [ -f "build.py" ]; then
+  sed -i.bak 's|RustDesk\.app|Printsoft Assist.app|g' build.py
+  sed -i.bak 's|"RustDesk Installer"|"Printsoft Assist Installer"|g' build.py
+  sed -i.bak 's|RustDesk %s\.dmg|Printsoft Assist %s.dmg|g' build.py
+fi
+
 # Linux
 if [ -f "flutter/linux/CMakeLists.txt" ]; then
   sed -i.bak 's|set(BINARY_NAME "rustdesk")|set(BINARY_NAME "printsoft-assist")|g' flutter/linux/CMakeLists.txt
