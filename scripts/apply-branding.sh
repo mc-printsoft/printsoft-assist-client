@@ -19,12 +19,11 @@ echo "=== Printsoft Assist branding apply ==="
 echo "Working directory: $(pwd)"
 
 # Sanity check — czy jestesmy w forku RustDesk?
+# 0g.14b: NIE zmieniamy juz `name = "rustdesk"` na "printsoft-assist" (build fail
+# w flutter_rust_bridge_codegen). Sprawdzamy tylko obecnosc rustdesk w Cargo.toml.
 if [ ! -f "Cargo.toml" ] || ! grep -q '^name = "rustdesk"' Cargo.toml 2>/dev/null; then
-  if ! grep -q '^name = "printsoft-assist"' Cargo.toml 2>/dev/null; then
-    echo "BLAD: nie jestem w forku RustDesk (brak Cargo.toml z name=rustdesk)."
-    exit 1
-  fi
-  echo "INFO: branding juz zaplikowany (Cargo.toml ma printsoft-assist). Refresh."
+  echo "BLAD: nie jestem w forku RustDesk (brak Cargo.toml z name=rustdesk)."
+  exit 1
 fi
 
 # ─── 1. Default rendezvous + pubkey w libs/hbb_common/src/config.rs ───
@@ -81,8 +80,15 @@ fi
 # w 10+ plikach (.rs, .dart, CMake). Zostaje "librustdesk", bo to tylko internal
 # library name i Flutter ja loaduje przez konkretne sciezki w native_model.dart.
 echo "[5/8] Cargo.toml metadata"
-sed -i.bak 's|^name = "rustdesk"|name = "printsoft-assist"|' Cargo.toml
-sed -i.bak 's|^default-run = "rustdesk"|default-run = "printsoft-assist"|' Cargo.toml
+# 0g.14b (10.05.2026): NIE zmieniamy `name = "rustdesk"` ani `default-run` — to
+# nazwa crate Rust uzywana przez flutter_rust_bridge_codegen do generowania
+# klasy Dart `RustdeskImpl` w generated_bridge.dart. Plik native_model.dart
+# (ręcznie pisany Dart, nie generated) tez hardcoduje `RustdeskImpl`.
+# Patchowanie name → "printsoft-assist" powoduje generacje `PrintsoftAssistImpl`,
+# native_model.dart nie matcha → BUILD FAIL z `RustdeskImpl isn't a type`.
+# Zostawiamy crate name "rustdesk" — branding leci tylko w [package.metadata.bundle]
+# (nazwa .app / .exe), Info.plist (CFBundleName), AppInfo.xcconfig (PRODUCT_NAME).
+# To wystarcza dla user-facing nazwy w macOS Finder i Windows Properties.
 sed -i.bak 's|^description = .*|description = "Printsoft Assist - remote support tool"|' Cargo.toml
 # [package.metadata.bundle] - zmieniamy 'name = "RustDesk"' i 'identifier'.
 # UWAGA: 'name = "RustDesk"' wystepuje w [package.metadata.bundle] sekcji,
