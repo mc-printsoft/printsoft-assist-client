@@ -267,6 +267,65 @@ fi
 # Plus english fallback (en.rs) zeby gdyby user przelaczyl jezyk to tez bez RustDesk.
 echo "[9/9] Translations rebrand (PL + EN)"
 
+# Default settings (Maciej feedback 10.05.2026 — preferowane defaults)
+# DEFAULT_SETTINGS w libs/hbb_common/src/config.rs (submodule rustdesk).
+# Aplikowane przez Python (multiline replace).
+echo "[9b/9] Default settings (Printsoft preferences)"
+python3 - <<'PYEOF'
+import re
+
+cfg_path = 'libs/hbb_common/src/config.rs'
+with open(cfg_path, 'r') as f:
+    content = f.read()
+
+# Patch DEFAULT_SETTINGS init (linia ~65)
+old = '    pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = Default::default();'
+new = '''    pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new({
+        // 0g.14b ci-fix7 (10.05.2026): Printsoft Assist preferred defaults.
+        let mut m = HashMap::new();
+        m.insert("enable-record-session".to_string(), "Y".to_string());
+        m.insert("auto-record-incoming-session".to_string(), "Y".to_string());
+        m.insert("auto-record-outgoing-session".to_string(), "Y".to_string());
+        m.insert("enable-trusted-devices".to_string(), "Y".to_string());
+        m.insert("enable-tunnel".to_string(), "N".to_string());
+        m.insert("enable-direct-ip-access".to_string(), "N".to_string());
+        m.insert("force-relay".to_string(), "N".to_string());
+        m.insert("enable-file-transfer".to_string(), "Y".to_string());
+        m.insert("enable-audio".to_string(), "Y".to_string());
+        m.insert("view-style".to_string(), "adaptive".to_string());
+        m.insert("image-quality".to_string(), "best".to_string());
+        m.insert("enable-confirm-closing-tabs".to_string(), "Y".to_string());
+        m.insert("allow-auto-update".to_string(), "Y".to_string());
+        m.insert("hide-server-settings".to_string(), "Y".to_string());
+        m
+    });'''
+
+if old in content:
+    content = content.replace(old, new)
+    print("   DEFAULT_SETTINGS patched")
+else:
+    print("   WARN: DEFAULT_SETTINGS not found - moze juz patched lub layout sie zmienil")
+
+# Patch DEFAULT_LOCAL_SETTINGS init
+old_l = '    pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = Default::default();'
+new_l = '''    pub static ref DEFAULT_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new({
+        // 0g.14b ci-fix7 (10.05.2026): Printsoft locale + theme.
+        let mut m = HashMap::new();
+        m.insert("lang".to_string(), "pl".to_string());
+        m.insert("theme".to_string(), "system".to_string());
+        m
+    });'''
+
+if old_l in content:
+    content = content.replace(old_l, new_l)
+    print("   DEFAULT_LOCAL_SETTINGS patched")
+else:
+    print("   WARN: DEFAULT_LOCAL_SETTINGS not found")
+
+with open(cfg_path, 'w') as f:
+    f.write(content)
+PYEOF
+
 # Polski - usun calkiem "Powered by RustDesk" oraz status bar tip o szybszym serwerze
 if [ -f "src/lang/pl.rs" ]; then
   # Status bar bottom: zniknij komunikat "W celu uzyskania szybszego polaczenia..."
