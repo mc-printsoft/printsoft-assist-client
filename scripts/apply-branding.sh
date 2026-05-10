@@ -374,6 +374,46 @@ if [ -f "flutter/lib/common.dart" ]; then
   sed -i.bak "s|launchUrl(Uri.parse('https://rustdesk.com'))|launchUrl(Uri.parse('https://printsoft.app'))|g" flutter/lib/common.dart
 fi
 
+# 0g.14b Etap 1 (10.05.2026): Wstaw PrintsoftAuthGate do main.dart.
+# Owijamy DesktopTabPage w PrintsoftAuthGate ktory sprawdza login email.
+if [ -f "flutter/lib/main.dart" ]; then
+  python3 - <<'PYEOF'
+path = 'flutter/lib/main.dart'
+with open(path, 'r') as f:
+    content = f.read()
+
+# Dodaj import na liscie importow (po ostatnim 'package:flutter_hbb/...').
+import_line = "import 'package:flutter_hbb/desktop/widgets/printsoft_auth_gate.dart';"
+if import_line not in content:
+    # Wstaw po pierwszym import flutter_hbb
+    idx = content.find("import 'package:flutter_hbb/")
+    if idx != -1:
+        # Znajdz koniec tej linii
+        end_of_line = content.find('\n', idx)
+        content = content[:end_of_line + 1] + import_line + '\n' + content[end_of_line + 1:]
+
+# Owin DesktopTabPage w PrintsoftAuthGate
+old_home = '''home: isDesktop
+              ? const DesktopTabPage()
+              : isWeb
+                  ? WebHomePage()
+                  : HomePage(),'''
+new_home = '''home: isDesktop
+              ? const PrintsoftAuthGate(child: DesktopTabPage())
+              : isWeb
+                  ? WebHomePage()
+                  : HomePage(),'''
+if old_home in content:
+    content = content.replace(old_home, new_home)
+    print("   PrintsoftAuthGate wrapped DesktopTabPage")
+else:
+    print("   WARN: home: isDesktop layout sie zmienil - sprawdz manualnie")
+
+with open(path, 'w') as f:
+    f.write(content)
+PYEOF
+fi
+
 # Logo Printsoft nad "Twój pulpit" w lewym panelu (Maciej feedback 10.05.2026).
 # Dodaje obrazek 60x60 z assets/logo.png (juz wygenerowany przez branding step 8).
 # Patchujemy desktop_home_page.dart przez Python (multiline replace).
