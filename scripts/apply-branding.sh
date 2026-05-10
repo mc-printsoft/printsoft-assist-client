@@ -124,8 +124,13 @@ fi
 echo "[7/8] Platform branding (Mac/Win/Linux)"
 
 # macOS
+# 0g.14b ci-fix4 (10.05.2026): PRODUCT_NAME bez spacji (PrintsoftAssist) zeby
+# bundle output nazywal sie "PrintsoftAssist.app" (bez spacji). Spacja w
+# nazwie pliku powoduje problemy z shell escape w build.py (cp -rf X.app/...
+# rozbija sie na 2 argumenty). User w macOS Finder widzi "PrintsoftAssist" —
+# czytelne, bez problemow.
 if [ -f "flutter/macos/Runner/Configs/AppInfo.xcconfig" ]; then
-  sed -i.bak 's|PRODUCT_NAME = RustDesk|PRODUCT_NAME = Printsoft Assist|g' flutter/macos/Runner/Configs/AppInfo.xcconfig
+  sed -i.bak 's|PRODUCT_NAME = RustDesk|PRODUCT_NAME = PrintsoftAssist|g' flutter/macos/Runner/Configs/AppInfo.xcconfig
   sed -i.bak 's|com.carriez.flutterHbb|app.printsoft.assist|g' flutter/macos/Runner/Configs/AppInfo.xcconfig
 fi
 
@@ -149,15 +154,23 @@ if [ -f "flutter/windows/runner/Runner.rc" ]; then
   sed -i.bak 's|"RustDesk"|"Printsoft Assist"|g' flutter/windows/runner/Runner.rc
 fi
 
-# 0g.14b ci-fix3 (10.05.2026): build.py post-build copy szuka RustDesk.app
-# (nazwa bundle przed naszym brandingiem). Ale po PRODUCT_NAME=Printsoft Assist
-# Tauri/Flutter tworzy Printsoft Assist.app — copy padl z:
-#   "cp: directory ./build/macos/Build/Products/Release/RustDesk.app/Contents/MacOS does not exist"
-# Patchujemy build.py: RustDesk.app -> Printsoft Assist.app
+# 0g.14b ci-fix4 (10.05.2026): build.py post-build copy szuka RustDesk.app.
+# Po PRODUCT_NAME=Printsoft Assist Tauri/Flutter tworzy "Printsoft Assist.app"
+# (ze SPACJĄ). build.py uzywa shell `system2('cp -rf X.app/Contents/MacOS')` —
+# shell parser rozbija sciezke ze spacja na 2 argumenty:
+#   cp: Assist.app/Contents/MacOS is not a directory
+#
+# Rozwiazanie: bundle name BEZ SPACJI -> "PrintsoftAssist.app".
+# Klient w Finder widzi "PrintsoftAssist" - czytelne, bez problemow z shell.
+# Wcale nie zmienia sie pozycja w UI (Dock/Finder), tylko nazwa bundle on-disk.
+#
+# UWAGA: PRODUCT_NAME w xcconfig (Configs/AppInfo.xcconfig) musi byc tez bez
+# spacji bo ta zmienna idzie do nazwy bundle output. Jest patch na linii ~128.
+# Dlatego TUTAJ tez `PrintsoftAssist` (bez spacji) zeby pasowac.
 if [ -f "build.py" ]; then
-  sed -i.bak 's|RustDesk\.app|Printsoft Assist.app|g' build.py
+  sed -i.bak 's|RustDesk\.app|PrintsoftAssist.app|g' build.py
   sed -i.bak 's|"RustDesk Installer"|"Printsoft Assist Installer"|g' build.py
-  sed -i.bak 's|RustDesk %s\.dmg|Printsoft Assist %s.dmg|g' build.py
+  sed -i.bak 's|RustDesk %s\.dmg|PrintsoftAssist %s.dmg|g' build.py
 fi
 
 # Linux
