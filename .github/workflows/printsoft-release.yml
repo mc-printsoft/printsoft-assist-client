@@ -262,26 +262,48 @@ jobs:
         run: $VCPKG_ROOT/vcpkg install --triplet x64-windows-static --x-install-root="$VCPKG_ROOT/installed"
 
       - name: Build
-        run: python3 .\build.py --portable --hwcodec --flutter --vram --skip-portable-pack
+        # 11.05.2026: usuniete --skip-portable-pack. Bez tego dostawalismy goly
+        # rustdesk.exe 358KB ktory szukal DLL obok (librustdesk.dll 35MB,
+        # flutter_windows.dll 18MB + 14 plugin DLLs + assets/) - klient dostal
+        # crash "DLL not found" przy uruchomieniu. Z portable-pack build.py
+        # robi `rustdesk-{version}-install.exe` self-extracting (~70MB)
+        # ktore unpackuje wszystko do tempa przy uruchomieniu.
+        run: python3 .\build.py --portable --hwcodec --flutter --vram
 
       - name: Locate built artifacts
         shell: bash
         run: |
           ls -la ./SignOutput/ 2>/dev/null || true
+          ls -la *.exe 2>/dev/null || true
           ls -la ./flutter/build/windows/x64/runner/Release/ 2>/dev/null || true
           # Sanityzuj TAG_NAME — workflow_dispatch z brancha "feature/foo" wstawia
           # slash do filename i `cp out/printsoft-assist-feature/foo.exe` traktuje
           # to jako podkatalog → fail. Zamiana / na -.
           SAFE_TAG="${TAG_NAME#assist-}"
           SAFE_TAG="${SAFE_TAG//\//-}"
-          # Skopiuj .exe pod nasza nazwe
           mkdir -p out
-          if [ -f ./SignOutput/*.exe ]; then
-            cp ./SignOutput/*.exe "out/printsoft-assist-${SAFE_TAG}.exe" || true
-          fi
-          # Fallback: zwykly Release exe (nie self-extracting)
+          # 1. Najpierw self-extracting installer z portable-pack (rustdesk-*-install.exe w root)
+          for f in ./rustdesk-*-install.exe ./*-install.exe; do
+            if [ -f "$f" ]; then
+              cp "$f" "out/printsoft-assist-${SAFE_TAG}.exe"
+              echo "Found portable installer: $f"
+              break
+            fi
+          done
+          # 2. SignOutput fallback (gdy custom signing setup)
           if [ ! -f out/*.exe ]; then
-            find ./flutter/build/windows/x64/runner/Release -name "*.exe" -exec cp {} "out/printsoft-assist-${SAFE_TAG}.exe" \;
+            for f in ./SignOutput/*.exe; do
+              if [ -f "$f" ]; then
+                cp "$f" "out/printsoft-assist-${SAFE_TAG}.exe"
+                echo "Found signed exe: $f"
+                break
+              fi
+            done
+          fi
+          # 3. Ostateczny fallback: surowy Release exe (BEZ DLL - tylko awaryjnie)
+          if [ ! -f out/*.exe ]; then
+            echo "WARNING: brak portable installer ani SignOutput - probuje raw Release exe (bez DLL!)"
+            find ./flutter/build/windows/x64/runner/Release -name "rustdesk.exe" -exec cp {} "out/printsoft-assist-${SAFE_TAG}.exe" \;
           fi
           ls -la out/
 
